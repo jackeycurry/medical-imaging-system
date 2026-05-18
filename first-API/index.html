@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医学影像分析 - MedGemma 1.5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            background: #0a0a1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            margin-bottom: 30px;
+            font-size: 28px;
+            text-shadow: 0 0 20px rgba(0,212,255,0.5);
+        }
+        .upload-section {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px dashed #00d4ff;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .upload-section:hover {
+            border-color: #00ff88;
+            background: linear-gradient(135deg, #1a1a2e 0%, #1a3a5c 100%);
+        }
+        .upload-section.dragover {
+            border-color: #00ff88;
+            background: rgba(0,255,136,0.1);
+        }
+        .upload-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        .upload-text {
+            font-size: 18px;
+            color: #aaa;
+        }
+        .upload-text span {
+            color: #00d4ff;
+        }
+        #fileInput {
+            display: none;
+        }
+        .preview-container {
+            display: none;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .preview-container.active {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        .preview-box {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .preview-box h3 {
+            color: #00d4ff;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        .preview-box img {
+            width: 100%;
+            border-radius: 8px;
+            display: block;
+        }
+        .analyze-btn {
+            display: none;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 30px;
+            padding: 16px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(0,212,255,0.3);
+        }
+        .analyze-btn.active {
+            display: block;
+        }
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(0,212,255,0.5);
+        }
+        .analyze-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .result-section {
+            display: none;
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 24px;
+        }
+        .result-section.active {
+            display: block;
+        }
+        .result-section h2 {
+            color: #00d4ff;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        .analysis-text {
+            background: #0d0d1a;
+            border-radius: 12px;
+            padding: 20px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            color: #d0d0d0;
+            margin-bottom: 20px;
+        }
+        .bboxes-info {
+            background: #0d0d1a;
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .bboxes-info h4 {
+            color: #00ff88;
+            margin-bottom: 12px;
+        }
+        .bbox-item {
+            display: inline-block;
+            background: rgba(0,255,136,0.1);
+            border: 1px solid #00ff88;
+            border-radius: 20px;
+            padding: 8px 16px;
+            margin: 6px;
+            font-size: 14px;
+            color: #00ff88;
+        }
+        .status {
+            text-align: center;
+            padding: 20px;
+            color: #00d4ff;
+            font-size: 16px;
+        }
+        .status.error {
+            color: #ff4444;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,212,255,0.3);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🩻 医学影像智能分析系统</h1>
+        <p style="text-align:center;color:#888;margin-bottom:30px;">基于 Ollama MedGemma 1.5 多模态模型</p>
+
+        <!-- 上传区域 -->
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📤</div>
+            <p class="upload-text">
+                <span>点击上传</span> 或拖拽图片到这里<br>
+                <small style="color:#666">支持 JPG, PNG, WebP 格式</small>
+            </p>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <!-- 预览区域 -->
+        <div class="preview-container" id="previewContainer">
+            <div class="preview-box">
+                <h3>📷 原图</h3>
+                <img id="originalPreview" alt="原图">
+            </div>
+            <div class="preview-box">
+                <h3>🎯 标注结果</h3>
+                <img id="annotatedPreview" alt="标注结果">
+            </div>
+        </div>
+
+        <!-- 分析按钮 -->
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyzeImage()">
+            🔍 开始分析
+        </button>
+
+        <!-- 状态显示 -->
+        <div class="status" id="statusText"></div>
+
+        <!-- 结果区域 -->
+        <div class="result-section" id="resultSection">
+            <h2>📋 分析报告</h2>
+            <div class="analysis-text" id="analysisText"></div>
+            <div class="bboxes-info" id="bboxesInfo">
+                <h4>📦 检测到的病灶区域:</h4>
+                <div id="bboxesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8008/xray/analyze';
+        let selectedFile = null;
+
+        // DOM元素
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const originalPreview = document.getElementById('originalPreview');
+        const annotatedPreview = document.getElementById('annotatedPreview');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const statusText = document.getElementById('statusText');
+        const resultSection = document.getElementById('resultSection');
+        const analysisText = document.getElementById('analysisText');
+        const bboxesList = document.getElementById('bboxesList');
+
+        // 点击上传
+        uploadSection.addEventListener('click', () => fileInput.click());
+
+        // 拖拽上传
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // 文件选择
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+
+            // 显示原图预览
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalPreview.src = e.target.result;
+                annotatedPreview.src = ''; // 清空上次的标注结果
+            };
+            reader.readAsDataURL(file);
+
+            // 显示预览和分析按钮
+            previewContainer.classList.add('active');
+            analyzeBtn.classList.add('active');
+            resultSection.classList.remove('active');
+            statusText.textContent = '';
+        }
+
+        async function analyzeImage() {
+            if (!selectedFile) return;
+
+            // 设置加载状态
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = '<span class="spinner"></span>分析中...';
+            statusText.textContent = '正在调用 MedGemma 1.5 模型分析图像，请稍候...';
+            statusText.className = 'status';
+            resultSection.classList.remove('active');
+
+            try {
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.code !== 200) {
+                    throw new Error(data.error || '分析失败');
+                }
+
+                const result = data.result;
+
+                // 显示标注结果
+                if (result.annotated_image) {
+                    annotatedPreview.src = result.annotated_image;
+                }
+
+                // 显示分析文本
+                analysisText.textContent = result.analysis;
+
+                // 显示边界框信息
+                bboxesList.innerHTML = '';
+                if (result.bboxes && result.bboxes.length > 0) {
+                    result.bboxes.forEach((bbox, index) => {
+                        const tag = document.createElement('span');
+                        tag.className = 'bbox-item';
+                        tag.textContent = `${index + 1}. ${bbox.label} (x1:${bbox.x1}%, y1:${bbox.y1}%, x2:${bbox.x2}%, y2:${bbox.y2}%)`;
+                        bboxesList.appendChild(tag);
+                    });
+                    document.getElementById('bboxesInfo').style.display = 'block';
+                } else {
+                    document.getElementById('bboxesInfo').style.display = 'none';
+                }
+
+                // 显示结果区域
+                resultSection.classList.add('active');
+                statusText.textContent = `✅ 分析完成！检测到 ${result.bboxes_count || 0} 个病灶区域`;
+                statusText.className = 'status';
+
+            } catch (error) {
+                statusText.textContent = `❌ 分析失败: ${error.message}`;
+                statusText.className = 'status error';
+                console.error('分析错误:', error);
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = '🔍 开始分析';
+            }
+        }
+    </script>
+</body>
+</html>

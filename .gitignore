@@ -1,0 +1,49 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.env
+.venv
+venv/
+ENV/
+
+# Backend
+backend/__pycache__/
+backend/*.db
+backend/reports/*.pdf
+backend/reports/*.png
+backend/uploads/
+backend/temp/
+*.log
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude
+.claude/
+*.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Databases
+*.db
+
+# Test
+*.test.py
+*_test.py
